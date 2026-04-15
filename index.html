@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="theme-color" content="#378ADD">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <link rel="manifest" href="manifest.json">
+  <title>Dépôt de fichiers</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: system-ui, -apple-system, sans-serif; background: #f5f5f2; color: #1a1a1a; min-height: 100vh; padding: 2rem 1rem; }
+    .container { max-width: 700px; margin: 0 auto; }
+    h1 { font-size: 22px; font-weight: 500; margin-bottom: 1.5rem; }
+    #drop-zone { border: 2px dashed #ccc; border-radius: 12px; background: #fafafa; padding: 3rem 2rem; text-align: center; cursor: pointer; transition: border-color 0.2s, background 0.2s; margin-bottom: 1.5rem; }
+    #drop-zone.drag-over { border-color: #378ADD; background: #E6F1FB; }
+    #drop-zone svg { margin: 0 auto 12px; display: block; opacity: 0.45; }
+    #drop-zone p { color: #555; font-size: 15px; margin-bottom: 6px; }
+    #drop-zone span { font-size: 13px; color: #999; }
+    .btn-group { display: flex; gap: 8px; justify-content: center; margin-top: 12px; }
+    .btn { padding: 8px 16px; border: 1px solid #ccc; border-radius: 8px; font-size: 14px; font-weight: 500; background: #fff; cursor: pointer; transition: background 0.15s; }
+    .btn:hover { background: #f0f0f0; }
+    #stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 1.5rem; }
+    .stat-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 8px; padding: 14px 16px; text-align: center; }
+    .stat-card .val { font-size: 22px; font-weight: 500; }
+    .stat-card .lbl { font-size: 12px; color: #888; margin-top: 2px; }
+    #search-bar { display: flex; gap: 8px; margin-bottom: 1rem; }
+    #search-bar input { flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 8px; font-size: 14px; outline: none; background: #fff; }
+    #search-bar input:focus { border-color: #378ADD; }
+    #filter-select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 8px; font-size: 13px; background: #fff; outline: none; }
+    #file-list { display: flex; flex-direction: column; gap: 8px; }
+    .file-card { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; overflow: hidden; animation: fadeIn 0.25s ease; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .file-main { display: flex; align-items: center; gap: 12px; padding: 12px 16px; }
+    .file-icon { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 500; flex-shrink: 0; }
+    .file-info { flex: 1; min-width: 0; }
+    .file-name { font-size: 14px; font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .file-meta { font-size: 12px; color: #888; margin-top: 2px; }
+    .file-del, .file-dl { background: none; border: none; cursor: pointer; color: #bbb; font-size: 20px; padding: 4px 8px; border-radius: 8px; line-height: 1; flex-shrink: 0; transition: background 0.15s, color 0.15s; text-decoration: none; }
+    .file-del:hover { background: #fde8e8; color: #c0392b; }
+    .file-dl:hover { background: #e6f3fb; color: #378ADD; }
+    #empty-state { text-align: center; padding: 2rem; color: #bbb; font-size: 14px; }
+    #toast { position: fixed; bottom: 2rem; left: 50%; transform: translateX(-50%) translateY(20px); background: #1a1a1a; color: #fff; padding: 10px 20px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.2s, transform 0.2s; pointer-events: none; white-space: nowrap; z-index: 999; }
+    #toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+    #modal-overlay { position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.3); backdrop-filter: blur(4px); display: none; align-items: center; justify-content: center; z-index: 1000; }
+    #modal-content { background: #fff; width: 90%; max-width: 600px; border-radius: 12px; padding: 1.5rem; max-height: 80vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.1); }
+    #modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: 0.5rem; border-bottom: 1px solid #eee; }
+    #modal-close { cursor: pointer; font-size: 24px; color: #888; }
+    #modal-body pre { background: #f8f8f8; padding: 1rem; border-radius: 8px; overflow-x: auto; font-size: 13px; line-height: 1.5; white-space: pre-wrap; }
+    #modal-body img { max-width: 100%; height: auto; border-radius: 8px; display: block; margin: 0 auto; }
+    #modal-body iframe { width: 100%; height: 500px; border: none; border-radius: 8px; }
+    #breadcrumb { margin-bottom: 1rem; font-size: 14px; }
+    #notepad { background: #fff; border: 1px solid #e8e8e8; border-radius: 12px; padding: 1rem; margin-bottom: 1rem; }
+    #notepad h3 { margin: 0 0 0.5rem; font-size: 14px; color: #666; }
+    #notepad textarea { width: 100%; height: 120px; border: 1px solid #ddd; border-radius: 8px; padding: 8px; font-size: 13px; font-family: monospace; resize: vertical; }
+    #notepad-btns { display: flex; gap: 8px; margin-top: 0.5rem; }
+    #notepad .btn-save { background: #378ADD; color: #fff; border: none; }
+    #notepad .btn-save:hover { background: #2a6bc4; }
+  </style>
+</head>
+<body>
+
+<div class="container">
+  <h1>Dépôt de fichiers</h1>
+
+  <div id="drop-zone">
+    <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#888" stroke-width="1.5" stroke-linecap="round">
+      <path d="M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"/>
+      <polyline points="16 12 12 8 8 12"/>
+      <line x1="12" y1="8" x2="12" y2="20"/>
+    </svg>
+    <p>Glissez vos fichiers ou dossiers ici</p>
+    <span>Enregistrez-les ensuite sur votre PC</span><br>
+    <div class="btn-group">
+      <button id="browse-btn" class="btn">Fichiers</button>
+      <button id="browse-folder-btn" class="btn">Dossier</button>
+    </div>
+    <input type="file" id="file-input" multiple style="display:none">
+    <input type="file" id="folder-input" webkitdirectory directory style="display:none">
+  </div>
+
+<div id="notepad">
+    <h3>📝 Bloc-notes</h3>
+    <textarea id="note-content" placeholder="Écrivez vos notes ici..."></textarea>
+    <div id="notepad-btns">
+      <button id="note-save" class="btn btn-save">💾 Enregistrer</button>
+      <button id="note-download" class="btn">⬇ Télécharger</button>
+      <button id="note-view" class="btn">👁 Voir</button>
+      <button id="note-history" class="btn">📜 Historique</button>
+    </div>
+  </div>
+
+  <div id="stats">
+    <div class="stat-card"><div class="val" id="s-count">0</div><div class="lbl">Items</div></div>
+    <div class="stat-card"><div class="val" id="s-size">0 Ko</div><div class="lbl">Taille totale</div></div>
+    <div class="stat-card"><div class="val" id="s-types">0</div><div class="lbl">Types</div></div>
+  </div>
+
+  <div id="breadcrumb" style="margin-bottom: 1rem; font-size: 14px; color: #666; display: flex; align-items: center; gap: 4px;">
+    <span style="cursor:pointer; color:#378ADD" onclick="navigateTo('')">Accueil</span>
+  </div>
+
+  <div id="search-bar">
+    <input type="text" id="search-input" placeholder="Rechercher...">
+    <select id="filter-select"><option value="">Tous les types</option></select>
+    <button id="clear-all-btn" class="btn">🗑️Tout supprimer</button>
+  </div>
+
+  <div id="file-list">
+    <div id="empty-state">Aucun fichier déposé pour l'instant</div>
+  </div>
+</div>
+
+<div id="modal-overlay">
+  <div id="modal-content">
+    <div id="modal-header">
+      <h3 id="modal-title">Contenu local</h3>
+      <span id="modal-close">×</span>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const pendingItems = [];
+  let serverItems = [];
+  let currentPath = '';
+
+  const dropZone = document.getElementById('drop-zone');
+  const fileInput = document.getElementById('file-input');
+  const folderInput = document.getElementById('folder-input');
+  const browseBtn = document.getElementById('browse-btn');
+  const browseFolderBtn = document.getElementById('browse-folder-btn');
+  const searchInput = document.getElementById('search-input');
+  const filterSel = document.getElementById('filter-select');
+  const toast = document.getElementById('toast');
+  const breadcrumb = document.getElementById('breadcrumb');
+  const modalOverlay = document.getElementById('modal-overlay');
+  const modalBody = document.getElementById('modal-body');
+  const mClose = document.getElementById('modal-close');
+
+  const extColors = {
+    pdf: { bg: '#FAECE7', color: '#993C1D', label: 'PDF' },
+    doc: { bg: '#E6F1FB', color: '#185FA5', label: 'DOC' },
+    xls: { bg: '#EAF3DE', color: '#3B6D11', label: 'XLS' },
+    jpg: { bg: '#FBEAF0', color: '#993556', label: 'IMG' },
+    png: { bg: '#FBEAF0', color: '#993556', label: 'IMG' },
+    mp4: { bg: '#EEEDFE', color: '#534AB7', label: 'VID' },
+    zip: { bg: '#FAEEDA', color: '#854F0B', label: 'ZIP' },
+    txt: { bg: '#F1EFE8', color: '#5F5E5A', label: 'TXT' },
+    folder: { bg: '#FAEEDA', color: '#854F0B', label: 'DIR' },
+  };
+
+  function getExt(name) { return name.includes('.') ? name.split('.').pop().toLowerCase() : ''; }
+  function getColor(item) { if (item.isFolder) return extColors.folder; const ext = getExt(item.name); return extColors[ext] || { bg: '#F1EFE8', color: '#5F5E5A', label: ext.toUpperCase().slice(0, 3) || 'FIL' }; }
+  function formatSize(bytes) { if (bytes < 1024) return bytes + ' o'; if (bytes < 1024 * 1024) return Math.round(bytes / 1024) + ' Ko'; return (bytes / (1024 * 1024)).toFixed(1) + ' Mo'; }
+  function showToast(msg) { toast.textContent = msg; toast.classList.add('show'); setTimeout(() => toast.classList.remove('show'), 2500); }
+
+  async function addFromFiles(fileList, folderName = null) {
+    if (folderName) {
+      const folderSize = Array.from(fileList).reduce((a, f) => a + f.size, 0);
+      const folderFiles = Array.from(fileList).map(f => ({ name: f.name, size: f.size, blob: f, path: currentPath ? currentPath + '/' + (f.webkitRelativePath || f.name) : (f.webkitRelativePath || f.name) }));
+      const item = { name: folderName, size: folderSize, isFolder: true, files: folderFiles, date: new Date().toLocaleDateString('fr-FR'), uploaded: false, path: currentPath ? currentPath + '/' + folderName : folderName, parent: currentPath };
+      pendingItems.push(item);
+      uploadItem(item);
+    } else {
+      Array.from(fileList).forEach(f => {
+        const item = { name: f.name, size: f.size, blob: f, isFolder: false, date: new Date().toLocaleDateString('fr-FR'), uploaded: false, path: currentPath ? currentPath + '/' + f.name : f.name, parent: currentPath };
+        pendingItems.push(item);
+        uploadItem(item);
+      });
+    }
+    updateStats();
+    renderList();
+  }
+
+  async function scanEntry(entry) {
+    let item;
+    if (entry.isFile) {
+      const f = await new Promise(res => entry.file(res));
+      item = { name: f.name, size: f.size, blob: f, isFolder: false, date: new Date().toLocaleDateString('fr-FR'), uploaded: false, path: currentPath ? currentPath + '/' + f.name : f.name, parent: currentPath };
+      pendingItems.push(item);
+      uploadItem(item);
+    } else if (entry.isDirectory) {
+      const reader = entry.createReader();
+      const entries = await new Promise(res => reader.readEntries(res));
+      const folderFiles = [];
+      let totalSize = 0;
+      async function processRecursively(ents, path = "") {
+        for (const e of ents) {
+          if (e.isFile) {
+            const f = await new Promise(res => e.file(res));
+            folderFiles.push({ name: f.name, size: f.size, blob: f, path: path + f.name });
+            totalSize += f.size;
+          } else if (e.isDirectory) {
+            const r = e.createReader();
+            const sub = await new Promise(res => r.readEntries(res));
+            await processRecursively(sub, path + e.name + "/");
+          }
+        }
+      }
+      const entryPath = entry.name;
+      await processRecursively(entries, entryPath + "/");
+      item = { name: entry.name, size: totalSize, isFolder: true, files: folderFiles, date: new Date().toLocaleDateString('fr-FR'), uploaded: false, path: currentPath ? currentPath + '/' + entry.name : entry.name, parent: currentPath };
+      pendingItems.push(item);
+      uploadItem(item);
+    }
+    updateStats();
+    renderList();
+  }
+
+  function updateStats() {
+    const totalItems = pendingItems.length + serverItems.length;
+    document.getElementById('s-count').textContent = totalItems;
+    const totalSize = [...pendingItems, ...serverItems].reduce((a, f) => a + (f.size || 0), 0);
+    document.getElementById('s-size').textContent = formatSize(totalSize);
+    const types = new Set([...pendingItems, ...serverItems].map(f => f.isFolder ? 'folder' : getExt(f.name)));
+    document.getElementById('s-types').textContent = types.size;
+    filterSel.innerHTML = '<option value="">Tous</option>';
+    [...types].sort().forEach(t => { if (!t) return; const opt = document.createElement('option'); opt.value = t; opt.textContent = t === 'folder' ? 'Dossiers' : '.' + t; filterSel.appendChild(opt); });
+  }
+
+  function updateBreadcrumbs() {
+    breadcrumb.innerHTML = '<span style="cursor:pointer; color:#378ADD" onclick="navigateTo(\'\')">Accueil</span>';
+    if (!currentPath) return;
+    const parts = currentPath.split('/'); let pathAcc = '';
+    parts.forEach((p, i) => { pathAcc += (i === 0 ? '' : '/') + p; breadcrumb.innerHTML += ` <span style="color:#999">/</span> <span style="cursor:pointer; color:#378ADD" onclick="navigateTo('${pathAcc}')">${p}</span>`; });
+  }
+
+  function renderList() {
+    const q = searchInput.value.toLowerCase(); const ft = filterSel.value;
+    const localInPath = pendingItems.filter(item => item.parent === currentPath);
+    const combined = [...localInPath, ...serverItems];
+    const filtered = combined.filter(f => f.name.toLowerCase().includes(q) && (ft === '' || (f.isFolder ? ft === 'folder' : getExt(f.name) === ft)));
+    const list = document.getElementById('file-list'); updateBreadcrumbs();
+    if (filtered.length === 0 && !currentPath) { list.innerHTML = `<div id="empty-state">Aucun item</div>`; return; }
+    list.innerHTML = '';
+    if (currentPath) {
+      const parentPath = currentPath.includes('/') ? currentPath.split('/').slice(0, -1).join('/') : '';
+      list.innerHTML += `<div class="file-card" style="cursor:pointer" onclick="navigateTo('${parentPath}')"><div class="file-main"><div class="file-icon" style="background:#f0f0f0; color:#666">..</div><div class="file-info"><div class="file-name">Dossier parent</div><div class="file-meta">Retour en arrière</div></div></div></div>`;
+    }
+    filtered.forEach((item) => {
+      const c = getColor(item);
+      const isLocal = !item.uploaded;
+      const clickAction = isLocal ? `previewFile('L', ${pendingItems.indexOf(item)})` : `previewFile('S', ${serverItems.indexOf(item)})`;
+      list.innerHTML += `<div class="file-card"><div class="file-main" style="cursor:pointer" onclick="${clickAction}"><div class="file-icon" style="background:${c.bg};color:${c.color}">${c.label}</div><div class="file-info"><div class="file-name">${item.name} ${item.uploaded ? '✅' : '⏳'}</div><div class="file-meta">${item.isFolder ? (item.fileCount ? item.fileCount + ' fichiers' : 'Dossier') : formatSize(item.size)} · ${item.date}</div></div></div>${item.uploaded && !item.isFolder ? `<a class="file-dl" href="/${item.path}" download target="_blank" title="Enregistrer">💾</a>` : ''}<button class="file-del" data-id="${isLocal ? 'L_' + pendingItems.indexOf(item) : 'S_' + serverItems.indexOf(item)}">×</button></div>`;
+    });
+    list.querySelectorAll('.file-del').forEach(b => b.onclick = async (e) => {
+      e.stopPropagation();
+      const id = b.dataset.id; const [type, idxStr] = id.split('_'); const idx = parseInt(idxStr);
+      if (type === 'S') {
+        const item = serverItems[idx];
+        if (!confirm(`Supprimer ${item.name} du serveur ?`)) return;
+        try {
+          const res = await fetch('/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: item.path }) });
+          if (res.ok) { showToast('✓ Supprimé'); loadExistingFiles(); } else { const err = await res.json(); showToast('❌ Erreur: ' + (err.error || 'Inconnue')); }
+        } catch (e) { showToast('❌ Erreur réseau'); }
+      } else { pendingItems.splice(idx, 1); updateStats(); renderList(); }
+    });
+  }
+
+  async function previewFile(type, idx) {
+    const item = type === 'L' ? pendingItems[idx] : serverItems[idx];
+    if (!item) return;
+    if (item.isFolder) { if (item.uploaded) return navigateTo(item.path); return exploreLocalFolder(item); }
+    document.getElementById('modal-title').textContent = "Aperçu : " + item.name;
+    modalBody.innerHTML = '<p style="color:#888; text-align:center; padding:2rem">Chargement...</p>';
+    modalOverlay.style.display = 'flex';
+    const ext = getExt(item.name);
+    const isImage = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg'].includes(ext);
+    const isPdf = ext === 'pdf';
+    try {
+      if (!item.uploaded) {
+        if (isImage) { const url = URL.createObjectURL(item.blob); modalBody.innerHTML = `<img src="${url}" onload="URL.revokeObjectURL('${url}')">`; }
+        else if (isPdf) { const url = URL.createObjectURL(item.blob); modalBody.innerHTML = `<iframe src="${url}"></iframe>`; }
+        else { const content = await item.blob.text(); modalBody.innerHTML = `<pre><code>${escapeHtml(content)}</code></pre>`; }
+      } else { const url = '/' + item.path; if (isImage) modalBody.innerHTML = `<img src="${url}">`; else if (isPdf) modalBody.innerHTML = `<iframe src="${url}"></iframe>`; else { const res = await fetch(url); const content = await res.text(); modalBody.innerHTML = `<pre><code>${escapeHtml(content)}</code></pre>`; } }
+    } catch (e) { modalBody.innerHTML = `<p style="color:#c0392b">Erreur : ${e.message}</p>`; }
+  }
+
+  function escapeHtml(text) { const div = document.createElement('div'); div.textContent = text; return div.innerHTML; }
+  function exploreLocalFolder(item) { document.getElementById('modal-title').textContent = "Aperçu du dossier : " + item.name; modalBody.innerHTML = item.files.map(f => `<div style="display:flex; justify-content:space-between; padding:8px 0; border-bottom:1px solid #f0f0f0; font-size:13px"><span>${f.path}</span><span style="color:#888">${formatSize(f.size)}</span></div>`).join('') || '<p style="color:#888">Vide</p>'; modalOverlay.style.display = 'flex'; }
+  window.navigateTo = function(path) { window.location.hash = path; };
+  window.addEventListener('hashchange', () => { currentPath = window.location.hash.slice(1); loadExistingFiles(); });
+  function initFromHash() { currentPath = window.location.hash.slice(1); loadExistingFiles(); }
+  async function loadExistingFiles() {
+    try { const res = await fetch(`/list?path=${encodeURIComponent(currentPath)}`); if (res.ok) { const data = await res.json(); serverItems = data; updateStats(); renderList(); } else { const err = await res.json(); showToast('❌ Erreur: ' + err.error); if (currentPath) navigateTo(''); } } catch (e) { console.error("Erreur chargement:", e); }
+  }
+  async function uploadItem(item) {
+    showToast('Enregistrement en cours...');
+    const formData = new FormData();
+    if (item.isFolder) { item.files.forEach(f => formData.append('file', f.blob, f.path)); }
+    else { formData.append('file', item.blob, item.path); }
+    try {
+      const res = await fetch('/upload', { method: 'POST', body: formData });
+      if (res.ok) { showToast('✓ Enregistré !'); const idx = pendingItems.indexOf(item); if (idx !== -1) pendingItems.splice(idx, 1); loadExistingFiles(); }
+      else { const text = await res.text(); showToast('❌ Erreur: ' + text); }
+    } catch (e) { showToast('❌ Erreur réseau'); }
+  }
+
+  mClose.onclick = () => modalOverlay.style.display = 'none';
+  modalOverlay.onclick = (e) => { if (e.target === modalOverlay) mClose.onclick(); };
+  initFromHash();
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', async e => { e.preventDefault(); dropZone.classList.remove('drag-over'); const entries = Array.from(e.dataTransfer.items).map(i => i.webkitGetAsEntry()).filter(e => e); for (const ent of entries) await scanEntry(ent); });
+  browseBtn.onclick = () => fileInput.click();
+  browseFolderBtn.onclick = () => folderInput.click();
+  fileInput.onchange = () => addFromFiles(fileInput.files);
+  folderInput.onchange = () => { if (folderInput.files.length > 0) { const root = folderInput.files[0].webkitRelativePath.split('/')[0]; addFromFiles(folderInput.files, root); } };
+  searchInput.oninput = renderList;
+  filterSel.onchange = renderList;
+
+  document.getElementById('clear-all-btn').onclick = async () => {
+    if (!confirm('Supprimer TOUS les fichiers et dossiers du serveur ?')) return;
+    showToast('Suppression en cours...');
+    try {
+      const res = await fetch(`/list?path=${encodeURIComponent(currentPath)}`);
+      const items = await res.json();
+      if (!items.length) { showToast('Aucun fichier à supprimer'); return; }
+      let deleted = 0;
+      for (const item of items) {
+        try {
+          const delRes = await fetch('/delete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: item.path }) });
+          if (delRes.ok) deleted++;
+        } catch (e) { console.error(e); }
+      }
+      showToast(`${deleted} fichier(s) supprimé(s)`);
+      loadExistingFiles();
+    } catch (e) { showToast('Erreur: ' + e.message); }
+  };
+
+  // Notepad - load from server
+  let notesData = { content: '', history: [] };
+  
+  async function loadNotes() {
+    try {
+      const res = await fetch('/notes');
+      notesData = await res.json();
+      document.getElementById('note-content').value = notesData.content || '';
+    } catch (e) {
+      notesData = { content: '', history: [] };
+    }
+  }
+  
+  async function saveNotes() {
+    const content = document.getElementById('note-content').value;
+    const timestamp = new Date().toLocaleString('fr-FR');
+    
+    // Update local data
+    notesData.content = content;
+    notesData.history.unshift({ time: timestamp, content: content });
+    if (notesData.history.length > 20) notesData.history = notesData.history.slice(0, 20);
+    
+    // Save to server
+    try {
+      await fetch('/notes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(notesData)
+      });
+      showToast('Notes sauvegardées');
+    } catch (e) {
+      showToast('Erreur: ' + e.message);
+    }
+  }
+  
+  function showHistory() {
+    if (!notesData.history || !notesData.history.length) return showToast('Aucun historique');
+    
+    let html = '<div style="max-height:400px;overflow-y:auto;">';
+    notesData.history.forEach((h, i) => {
+      html += '<div style="padding:10px;border-bottom:1px solid #eee;">';
+      html += '<div style="font-size:12px;color:#888;margin-bottom:4px;">' + h.time + '</div>';
+      html += '<pre style="white-space:pre-wrap;font-size:12px;margin:0;">' + escapeHtml(h.content.slice(0, 200)) + (h.content.length > 200 ? '...' : '') + '</pre>';
+      html += '<button onclick="restoreNote(' + i + ')" style="margin-top:4px;font-size:12px;padding:2px 8px;">♻ Restaurer</button>';
+      html += '</div>';
+    });
+    html += '</div>';
+    
+    document.getElementById('modal-title').textContent = '📜 Historique des notes';
+    modalBody.innerHTML = html;
+    modalOverlay.style.display = 'flex';
+  }
+  
+  window.restoreNote = function(index) {
+    if (notesData.history && notesData.history[index]) {
+      document.getElementById('note-content').value = notesData.history[index].content;
+      showToast('Note restaurée');
+      modalOverlay.style.display = 'none';
+    }
+  };
+  
+  function downloadNotes() {
+    const content = document.getElementById('note-content').value;
+    if (!content) return showToast('Rien à télécharger');
+    const blob = new Blob([content], {type: 'text/plain'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'notes-' + new Date().toISOString().slice(0,10) + '.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+  
+  function viewNotes() {
+    const content = document.getElementById('note-content').value;
+    if (!content) return showToast('Aucune note');
+    document.getElementById('modal-title').textContent = '📝 Notes';
+    modalBody.innerHTML = '<pre style="white-space:pre-wrap">' + escapeHtml(content) + '</pre>';
+    modalOverlay.style.display = 'flex';
+  }
+  
+  document.getElementById('note-save').onclick = saveNotes;
+  document.getElementById('note-download').onclick = downloadNotes;
+  document.getElementById('note-view').onclick = viewNotes;
+  document.getElementById('note-history').onclick = showHistory;
+  
+  // Load notes on startup
+  loadNotes();
+  
+  // Service Worker for PWA
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('sw.js').catch(() => {});
+  }
+</script>
+</body>
+</html>

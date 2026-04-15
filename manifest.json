@@ -1,0 +1,23 @@
+{
+  "name": "Dépôt de fichiers",
+  "short_name": "Dépôt",
+  "description": "Gestionnaire de fichiers et notes",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f5f5f2",
+  "theme_color": "#378ADD",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ],
+  "categories": ["productivity", "utilities"]
+}
