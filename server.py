@@ -5,17 +5,18 @@ import zipfile
 import json
 from datetime import datetime
 from io import BytesIO
-import cloudinary
-import cloudinary.uploader
-
-cloudinary.config(
-    cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
-    api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
-    api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
-    secure=True
-)
 
 USE_CLOUD = os.environ.get('CLOUDINARY_CLOUD_NAME', '')
+
+if USE_CLOUD:
+    import cloudinary
+    import cloudinary.uploader
+    cloudinary.config(
+        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME', ''),
+        api_key=os.environ.get('CLOUDINARY_API_KEY', ''),
+        api_secret=os.environ.get('CLOUDINARY_API_SECRET', ''),
+        secure=True
+    )
 
 app = Flask(__name__, static_folder='.')
 DIRECTORY = os.getcwd()
