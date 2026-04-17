@@ -342,6 +342,23 @@
       notesData = await res.json();
       document.getElementById('note-content').value = notesData.content || '';
     } catch (e) {
+      // Offline - try to load from IndexedDB
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        try {
+          const channel = new MessageChannel();
+          navigator.serviceWorker.controller.postMessage(
+            { type: 'get-notes-offline' },
+            [channel.port2]
+          );
+          channel.port1.onmessage = (e) => {
+            if (e.data.notes) {
+              notesData = e.data.notes;
+              document.getElementById('note-content').value = notesData.content || '';
+              showToast('Notes chargées (hors ligne)');
+            }
+          };
+        } catch (err) {}
+      }
       notesData = { content: '', history: [] };
     }
   }
@@ -364,7 +381,15 @@
       });
       showToast('Notes sauvegardées');
     } catch (e) {
-      showToast('Erreur: ' + e.message);
+      // Save offline
+      if (navigator.serviceWorker && navigator.serviceWorker.controller) {
+        const channel = new MessageChannel();
+        navigator.serviceWorker.controller.postMessage(
+          { type: 'save-notes-offline', notes: notesData },
+          [channel.port2]
+        );
+      }
+      showToast('Notes sauvegardées (hors ligne)');
     }
   }
   
