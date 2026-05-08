@@ -1,11 +1,11 @@
 {
-  "name": "Dépôt de fichiers",
-  "short_name": "Dépôt",
-  "description": "Gestionnaire de fichiers et notes",
+  "name": "Web-Publish Studio",
+  "short_name": "Web-Publish",
+  "description": "Éditeur WYSIWYG de mise en page type publication web",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#f5f5f2",
-  "theme_color": "#378ADD",
+  "background_color": "#2f3138",
+  "theme_color": "#23252d",
   "orientation": "any",
   "icons": [
     {
@@ -19,5 +19,5 @@
       "type": "image/svg+xml"
     }
   ],
-  "categories": ["productivity", "utilities"]
+  "categories": ["productivity", "design", "graphics"]
 }
