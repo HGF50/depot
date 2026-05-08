@@ -1,9 +1,5 @@
-const CACHE_NAME = 'depot-v2';
+const CACHE_NAME = 'web-publish-v1';
 const ASSETS = [
-  '/',
-  '/index.html',
-  '/mobile',
-  '/mobile.html',
   '/manifest.json',
   '/icon.svg'
 ];
@@ -38,7 +34,7 @@ self.addEventListener('fetch', (e) => {
 
   e.respondWith(
     fetch(e.request).then((r) => {
-      if (r.ok && url.pathname.startsWith('/')) {
+      if (r.ok && url.pathname.startsWith('/') && !url.pathname.endsWith('.html') && url.pathname !== '/') {
         const clone = r.clone();
         caches.open(CACHE_NAME).then((cache) => cache.put(e.request, clone));
       }
@@ -54,12 +50,13 @@ async function handleUpload(request) {
   } catch (error) {
     const formData = await request.formData();
     const pending = await getPendingUploads();
+    const files = await Promise.all(Array.from(formData.getAll('file')).map(async (f) => ({
+      name: f.name,
+      data: await blobToBase64(f)
+    })));
     pending.push({
       id: Date.now(),
-      files: Array.from(formData.getAll('file')).map(f => ({
-        name: f.name,
-        data: await blobToBase64(f)
-      })),
+      files,
       timestamp: Date.now()
     });
     await savePendingUploads(pending);
