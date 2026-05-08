@@ -168,6 +168,23 @@
       display: block;
     }
 
+    .text-editor-overlay {
+      position: absolute;
+      z-index: 5;
+      display: none;
+      min-width: 80px;
+      min-height: 42px;
+      border: 2px solid var(--accent);
+      border-radius: 4px;
+      padding: 6px;
+      outline: none;
+      resize: none;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.96);
+      color: #161616;
+      box-shadow: 0 0 0 2px rgba(38, 103, 255, 0.14);
+    }
+
     .properties {
       overflow: auto;
       padding: 1rem;
@@ -376,6 +393,7 @@
       <div class="page-shell" id="pageShell">
         <div class="page-rulers" aria-hidden="true"></div>
         <canvas id="pageCanvas" width="794" height="1123"></canvas>
+        <textarea id="textEditorOverlay" class="text-editor-overlay" spellcheck="true" aria-label="Édition du texte sur la page"></textarea>
       </div>
     </main>
 
@@ -575,9 +593,11 @@
       deleteObject: document.getElementById("deleteObject"),
       exportPng: document.getElementById("exportPng")
     };
+    els.textEditorOverlay = document.getElementById("textEditorOverlay");
 
     let activeTool = "select";
     let pendingImageMode = "decor";
+    let overlayEditedObject = null;
 
     fabric.Object.prototype.transparentCorners = false;
     fabric.Object.prototype.cornerColor = "#ffffff";
@@ -632,12 +652,43 @@
     function editActiveText(selectAll = false) {
       const object = canvas.getActiveObject();
       if (!isTextObject(object)) return;
-      canvas.setActiveObject(object);
-      object.enterEditing();
-      if (selectAll) object.selectAll();
-      if (object.hiddenTextarea) object.hiddenTextarea.focus();
+      overlayEditedObject = object;
+      const bounds = object.getBoundingRect(true, true);
+      const overlay = els.textEditorOverlay;
+      const fontSize = object.fontSize || 24;
+
+      overlay.value = object.text || "";
+      overlay.style.left = `${Math.max(0, bounds.left)}px`;
+      overlay.style.top = `${Math.max(0, bounds.top)}px`;
+      overlay.style.width = `${Math.max(80, bounds.width)}px`;
+      overlay.style.height = `${Math.max(42, bounds.height)}px`;
+      overlay.style.fontFamily = `"${object.fontFamily || "Inter"}", sans-serif`;
+      overlay.style.fontSize = `${fontSize}px`;
+      overlay.style.lineHeight = String(object.lineHeight || 1.2);
+      overlay.style.letterSpacing = `${((object.charSpacing || 0) / 1000) * fontSize}px`;
+      overlay.style.fontWeight = object.fontWeight || "400";
+      overlay.style.fontStyle = object.fontStyle || "normal";
+      overlay.style.textDecoration = object.underline ? "underline" : "none";
+      overlay.style.textAlign = object.textAlign === "justify" ? "left" : object.textAlign || "left";
+      overlay.style.color = typeof object.fill === "string" ? object.fill : "#161616";
+      overlay.style.transform = `rotate(${object.angle || 0}deg)`;
+      overlay.style.transformOrigin = "top left";
+      overlay.style.display = "block";
+      overlay.focus();
+      if (selectAll) overlay.select();
       canvas.requestRenderAll();
-      els.status.textContent = "Édition texte active — saisissez au clavier, Échap pour sortir";
+      els.status.textContent = "Édition texte active — Ctrl+Entrée ou clic ailleurs pour valider";
+    }
+
+    function commitOverlayText() {
+      if (!overlayEditedObject) return;
+      overlayEditedObject.set({ text: els.textEditorOverlay.value });
+      overlayEditedObject.initDimensions();
+      overlayEditedObject.setCoords();
+      overlayEditedObject = null;
+      els.textEditorOverlay.style.display = "none";
+      canvas.requestRenderAll();
+      updatePanel();
     }
 
     function createShape(left = 156, top = 180) {
@@ -857,13 +908,21 @@
     });
 
     canvas.on("selection:created", updatePanel);
-    canvas.on("selection:updated", updatePanel);
-    canvas.on("selection:cleared", updatePanel);
+    canvas.on("selection:updated", () => {
+      commitOverlayText();
+      updatePanel();
+    });
+    canvas.on("selection:cleared", () => {
+      commitOverlayText();
+      updatePanel();
+    });
     canvas.on("object:moving", (event) => {
+      commitOverlayText();
       constrainToPage(event.target);
       updatePanel();
     });
     canvas.on("object:scaling", (event) => {
+      commitOverlayText();
       normalizeTextAfterScaling(event.target);
       updatePanel();
     });
@@ -906,6 +965,19 @@
 
     els.textContent.addEventListener("input", () => applyToText({ text: els.textContent.value }));
     els.editText.addEventListener("click", () => editActiveText(false));
+    els.textEditorOverlay.addEventListener("blur", commitOverlayText);
+    els.textEditorOverlay.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" && (event.ctrlKey || event.metaKey)) {
+        event.preventDefault();
+        commitOverlayText();
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        els.textEditorOverlay.style.display = "none";
+        overlayEditedObject = null;
+        els.status.textContent = "Outil Sélection actif";
+      }
+    });
     els.fontFamily.addEventListener("change", () => {
       loadFont(els.fontFamily.value);
       applyToText({ fontFamily: els.fontFamily.value });
