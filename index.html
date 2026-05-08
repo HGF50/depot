@@ -440,6 +440,7 @@
         <div class="field">
           <label for="textContent">Contenu</label>
           <textarea id="textContent" placeholder="Sélectionnez un bloc de texte"></textarea>
+          <button class="button" id="editText" type="button">Éditer sur la page</button>
         </div>
         <div class="field">
           <label for="fontFamily">Police Google Fonts</label>
@@ -556,6 +557,7 @@
       objectW: document.getElementById("objectW"),
       objectH: document.getElementById("objectH"),
       textContent: document.getElementById("textContent"),
+      editText: document.getElementById("editText"),
       fontFamily: document.getElementById("fontFamily"),
       fontSize: document.getElementById("fontSize"),
       lineHeight: document.getElementById("lineHeight"),
@@ -621,11 +623,21 @@
       });
       canvas.add(textbox);
       canvas.setActiveObject(textbox);
-      textbox.enterEditing();
-      textbox.selectAll();
+      requestAnimationFrame(() => editActiveText(true));
       canvas.requestRenderAll();
       updatePanel();
       return textbox;
+    }
+
+    function editActiveText(selectAll = false) {
+      const object = canvas.getActiveObject();
+      if (!isTextObject(object)) return;
+      canvas.setActiveObject(object);
+      object.enterEditing();
+      if (selectAll) object.selectAll();
+      if (object.hiddenTextarea) object.hiddenTextarea.focus();
+      canvas.requestRenderAll();
+      els.status.textContent = "Édition texte active — saisissez au clavier, Échap pour sortir";
     }
 
     function createShape(left = 156, top = 180) {
@@ -840,6 +852,9 @@
         setTool("select");
       }
     });
+    canvas.on("mouse:dblclick", (event) => {
+      if (isTextObject(event.target)) editActiveText(false);
+    });
 
     canvas.on("selection:created", updatePanel);
     canvas.on("selection:updated", updatePanel);
@@ -890,6 +905,7 @@
     [els.objectX, els.objectY, els.objectW, els.objectH].forEach((input) => input.addEventListener("change", applyGeometry));
 
     els.textContent.addEventListener("input", () => applyToText({ text: els.textContent.value }));
+    els.editText.addEventListener("click", () => editActiveText(false));
     els.fontFamily.addEventListener("change", () => {
       loadFont(els.fontFamily.value);
       applyToText({ fontFamily: els.fontFamily.value });
@@ -959,6 +975,17 @@
     document.addEventListener("keydown", (event) => {
       const object = canvas.getActiveObject();
       const tag = document.activeElement?.tagName;
+      if (event.key === "Enter" && isTextObject(object) && tag !== "INPUT" && tag !== "TEXTAREA" && tag !== "SELECT") {
+        event.preventDefault();
+        editActiveText(false);
+        return;
+      }
+      if (event.key === "Escape" && isTextObject(object) && object.isEditing) {
+        object.exitEditing();
+        els.status.textContent = "Outil Sélection actif";
+        canvas.requestRenderAll();
+        return;
+      }
       if (!object || tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
       if (event.key === "Delete" || event.key === "Backspace") {
         canvas.remove(object);
